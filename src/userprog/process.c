@@ -68,7 +68,7 @@ start_process (void *file_name_)
   for (wordSplit[wordIndex] = strtok_r(file_name, " ", &save_ptr); wordSplit[wordIndex] != NULL; wordSplit[++wordIndex] = strtok_r(NULL, " ", &save_ptr));
 
   success = load (file_name, &if_.eip, &if_.esp);
-  if (success) argument_stack(wordSplit, --wordIndex, &if_.esp)
+  if (success) argument_stack(wordSplit, --wordIndex, &if_.esp);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success)
@@ -478,9 +478,9 @@ void argument_stack (char **wordSplit, int wordIndex, void **esp) {
     wordLen = strlen(wordSplit[wordIndex]) + 1;
     wordAlignControl += wordLen;
     *esp -= wordLen;
-    memcpy(*esp, wordSplit[wordIndex], wordLen + 1));
+    memcpy(*esp, wordSplit[wordIndex], wordLen + 1);
   }
-  alignedSize = WORD_ALIGN(esp, wordAlignControl);
+  WORD_ALIGN(esp, wordAlignControl, alignedSize);
   memset(*esp, 0, alignedSize * sizeof(uint8_t));
   for (i = wordIndex; i >= 0; --i) {
     *esp -= CHAR_POINTER_SIZE;
