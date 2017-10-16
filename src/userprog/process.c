@@ -481,7 +481,7 @@ void argument_stack (char **wordSplit, int wordIndex, void **esp) {
     memcpy(*esp, wordSplit[wordIndex], wordLen + 1);
   }
   // Word Align
-  alignedSize = (4 - CONTROL_NUMBER % 4);
+  alignedSize = (4 - wordAlignControl % 4);
   *esp -= alignedSize;
   memset(*esp, 0, alignedSize * sizeof(uint8_t));
 
