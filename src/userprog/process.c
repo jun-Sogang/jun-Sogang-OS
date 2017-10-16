@@ -56,7 +56,7 @@ start_process (void *file_name_)
   // 20121622
   char wordSplit[SPLIT_SIZE];
   char *save_ptr;
-  char *token;
+  //char *token;
   unsigned char wordIndex = 0;
 
   /* Initialize interrupt frame and load executable. */
@@ -480,8 +480,11 @@ void argument_stack (char **wordSplit, int wordIndex, void **esp) {
     *esp -= wordLen;
     memcpy(*esp, wordSplit[wordIndex], wordLen + 1);
   }
-  WORD_ALIGN(esp, wordAlignControl, alignedSize);
+  // Word Align
+  alignedSize = (4 - CONTROL_NUMBER % 4);
+  *esp -= alignedSize;
   memset(*esp, 0, alignedSize * sizeof(uint8_t));
+
   for (i = wordIndex; i >= 0; --i) {
     *esp -= CHAR_POINTER_SIZE;
     memcpy(*esp, &wordSplit[wordIndex], CHAR_POINTER_SIZE);
