@@ -15,6 +15,13 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf ("system call!\n");
+	
+	hex_dump(0, f->esp, 100, true);	
+
+
+
+
+
   thread_exit ();
+
 }
