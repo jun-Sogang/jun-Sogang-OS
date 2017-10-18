@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 
+#include "synch.h"
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -102,12 +103,14 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 
 		// 20121622
+		int wait_status;
 		int exit_status;
 		struct thread *parent;
 		struct list_elem child;
 		struct list children;
 		
-		struct semaphore *sema_waiting;
+		struct semaphore wait;
+		struct semaphore sema_executing;
   };
 
 /* If false (default), use round-robin scheduler.

@@ -470,6 +470,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+
+	list_init(&t->children);
+	sema_init(&t->wait, 0);
+	sema_init(&t->sema_executing, 0);
+	t->wait_status = 0;
+	t->exit_status = 0;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -587,13 +593,13 @@ allocate_tid (void)
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 struct thread *get_thread_tid (tid_t tid) {
-	struct thread *parent = thread_current();
-	struct thread *child;
 	struct list_elem *e;
-
-	for (e = list_begin(&parent->children); e != list_end(&parent->children); e = list_next(e)) {
-		child = list_entry(e, struct thread, child);
-		if (child->tid == tid) break;
+	struct thread *child;
+	USER_CHECK printf("JUN: start get_thread_tid\n");
+	for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)) {
+		child = list_entry(e, struct thread, allelem);
+		USER_CHECK printf("child->tid : %d, tid : %d\n", child->tid, tid);
+		if (child->tid == tid) return child;
 	}
-	return child;
+	return NULL;
 }

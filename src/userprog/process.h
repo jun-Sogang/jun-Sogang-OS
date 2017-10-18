@@ -16,5 +16,6 @@ void process_activate (void);
 #define INT_SIZE sizeof(int);
 #define VOID_POINTER_SIZE sizeof(void *)
 #define WORD_ALIGN(ESP, CONTROL_NUMBER, SIZE) (SIZE =  (4 - CONTROL_NUMBER % 4); *ESP -= SIZE)
+#define USER_CHECK if(false)
 
 void argument_stack (char **wordSplit, int wordIndex, void **esp);

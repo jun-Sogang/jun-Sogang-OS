@@ -31,20 +31,29 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 	tid_t
 process_execute (const char *file_name)
 {
+	USER_CHECK printf("start execute\n");
 	char *fn_copy;
 	tid_t tid;
+	struct thread *now_thread;
 	/* Make a copy of FILE_NAME.
 		 Otherwise there's a race between the caller and load(). */
 	fn_copy = palloc_get_page (0);
 	if (fn_copy == NULL)
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
-
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-	if (tid == TID_ERROR)
+	now_thread = get_thread_tid(tid);
+	if (tid == TID_ERROR) {
 		palloc_free_page (fn_copy);
-	printf("exit execute\n");
+	}
+	else {
+	/*		USER_CHECK printf("JUN: semaphore before down in process_execute: sema_executing\n");
+			sema_down(&now_thread->wait);
+			USER_CHECK printf("JUN: semaphore after down in process_execute: sema_executing\n");
+	*/}
+	USER_CHECK printf("exit process_execute\n");
+	//if (now_thread->exit_status == -1) process_wait(now_thread->tid);
 	return tid;
 }
 
@@ -53,6 +62,7 @@ process_execute (const char *file_name)
 	static void
 start_process (void *file_name_)
 {
+	USER_CHECK printf("start start_process\n");
 	char *file_name = file_name_;
 	struct intr_frame if_;
 	bool success;
@@ -69,16 +79,24 @@ start_process (void *file_name_)
 	// Split the word
 	for (wordSplit[wordIndex] = strtok_r(file_name, " ", &save_ptr); wordSplit[wordIndex]; wordSplit[++wordIndex] = strtok_r(NULL, " ", &save_ptr));
 	success = load (file_name, &if_.eip, &if_.esp);
+
+	nowThread = thread_current();
 	if (success) {
 		argument_stack(wordSplit, --wordIndex, &if_.esp);
-		nowThread = thread_current();
-		sema_up(nowThread->sema_waiting);
+		nowThread->exit_status = -1;
+	//	USER_CHECK printf("JUN: before sema_up in start_process: sema_executing\n");
+	//	sema_up(&nowThread->sema_executing);
+	//	USER_CHECK printf("JUN after sema_up in start_process: sema_executing\n");
+		thread_exit();
+	}
+	else {
+		nowThread->exit_status = -1;
+	//	sema_up(&nowThread->sema_executing);
+		thread_exit();
 	}
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
-	if (!success)
-		thread_exit ();
 
 	/* Start the user process by simulating a return from an
 		 interrupt, implemented by intr_exit (in
@@ -103,14 +121,21 @@ start_process (void *file_name_)
 process_wait (tid_t child_tid)
 {
 	struct thread *child;
-	child = get_thread_tid(child_tid);
+	int exit_status;
+	USER_CHECK printf("start process_wait\n");	
 	
-	sema_init(child->sema_waiting, 0);
+	if((child = get_thread_tid(child_tid)) == NULL) return -1;
+	if (child->status != THREAD_DYING) {
+		USER_CHECK printf("JUN: before sema_down in process_wait: sema_waiting\n");
 
-	if (child->status == THREAD_DYING) {
-		sema_down(child->sema_waiting);
+		sema_down(&child->wait);
+		exit_status = child->exit_status;
+		thread_unblock(child);
+		USER_CHECK printf("JUN: after sema_down in process_wait: sema_waiting\n");
 	}
-	return -1;
+	else {
+	}
+	return exit_status;
 }
 
 /* Free the current process's resources. */
@@ -119,10 +144,17 @@ process_exit (void)
 {
 	struct thread *cur = thread_current ();
 	uint32_t *pd;
+	USER_CHECK printf("start process_exit\n");
 
 	/* Destroy the current process's page directory and switch back
 		 to the kernel-only page directory. */
 	pd = cur->pagedir;
+	USER_CHECK printf("JUN: before sema_up in process_exit: sema_waiting\n");
+	sema_up(&cur->wait);
+	USER_CHECK printf("JUN: after sema_up in process_exit: sema_waiting\n");
+	intr_disable();
+	thread_block();
+	intr_enable();
 	if (pd != NULL)
 	{
 		/* Correct ordering here is crucial.  We must set
@@ -501,7 +533,6 @@ void argument_stack (char **wordSplit, int wordIndex, void **esp) {
 
 	for (i = wordIndex; i >= 0; --i) {
 		*esp -= CHAR_POINTER_SIZE;
-		printf("%x\n", (int)&wordSplit[i]);
 		*((int *)*esp) = (int)&wordSplit[i];
 	}
 	*esp -= CHAR_POINTER_SIZE;
@@ -513,5 +544,5 @@ void argument_stack (char **wordSplit, int wordIndex, void **esp) {
 	*esp -= VOID_POINTER_SIZE;
 	*((int *)*esp) = 0;
 
-	hex_dump((uintptr_t)*esp, (const char *)*esp, (uintptr_t)PHYS_BASE - (uintptr_t)*esp, true);	
+	USER_CHECK hex_dump((uintptr_t)*esp, (const char *)*esp, (uintptr_t)PHYS_BASE - (uintptr_t)*esp, true);	
 }
