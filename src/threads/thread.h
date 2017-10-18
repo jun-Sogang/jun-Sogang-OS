@@ -100,6 +100,14 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+		// 20121622
+		int exit_status;
+		struct thread *parent;
+		struct list_elem child;
+		struct list children;
+		
+		struct semaphore *sema_waiting;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -138,4 +146,8 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+// 20121622
+struct thread *get_thread_tid (tid_t tid);
+
 #endif /* threads/thread.h */
+

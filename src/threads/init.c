@@ -111,8 +111,11 @@ main (void)
   kbd_init ();
   input_init ();
 #ifdef USERPROG
+	printf("exception\n");
   exception_init ();
+	printf("before sys_init\n");
   syscall_init ();
+	printf("after sys_init\n");
 #endif
 
   /* Start thread scheduler and enable interrupts. */

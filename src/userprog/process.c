@@ -1,6 +1,7 @@
 #include "userprog/process.h"
 #include <debug.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include <round.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +18,8 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+
+#include "threads/synch.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -41,6 +44,7 @@ process_execute (const char *file_name)
 	tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
+	printf("exit execute\n");
 	return tid;
 }
 
@@ -55,9 +59,8 @@ start_process (void *file_name_)
 	// 20121622
 	char *wordSplit[SPLIT_SIZE];
 	char *save_ptr;
-	//char *token;
 	unsigned char wordIndex = 0;
-
+	struct thread *nowThread;
 	/* Initialize interrupt frame and load executable. */
 	memset (&if_, 0, sizeof if_);
 	if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -66,9 +69,12 @@ start_process (void *file_name_)
 	// Split the word
 	for (wordSplit[wordIndex] = strtok_r(file_name, " ", &save_ptr); wordSplit[wordIndex]; wordSplit[++wordIndex] = strtok_r(NULL, " ", &save_ptr));
 	success = load (file_name, &if_.eip, &if_.esp);
-	//printf("argument stack start\n");
-	if (success) argument_stack(wordSplit, --wordIndex, &if_.esp);
-	//printf("finish");
+	if (success) {
+		argument_stack(wordSplit, --wordIndex, &if_.esp);
+		nowThread = thread_current();
+		sema_up(nowThread->sema_waiting);
+	}
+
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
 	if (!success)
@@ -94,10 +100,16 @@ start_process (void *file_name_)
 	 This function will be implemented in problem 2-2.  For now, it
 	 does nothing. */
 	int
-process_wait (tid_t child_tid UNUSED)
+process_wait (tid_t child_tid)
 {
-	while(1)
-		;
+	struct thread *child;
+	child = get_thread_tid(child_tid);
+	
+	sema_init(child->sema_waiting, 0);
+
+	if (child->status == THREAD_DYING) {
+		sema_down(child->sema_waiting);
+	}
 	return -1;
 }
 
@@ -489,6 +501,7 @@ void argument_stack (char **wordSplit, int wordIndex, void **esp) {
 
 	for (i = wordIndex; i >= 0; --i) {
 		*esp -= CHAR_POINTER_SIZE;
+		printf("%x\n", (int)&wordSplit[i]);
 		*((int *)*esp) = (int)&wordSplit[i];
 	}
 	*esp -= CHAR_POINTER_SIZE;
@@ -499,4 +512,6 @@ void argument_stack (char **wordSplit, int wordIndex, void **esp) {
 	*((int *)*esp) = wordIndex + 1;
 	*esp -= VOID_POINTER_SIZE;
 	*((int *)*esp) = 0;
+
+	hex_dump((uintptr_t)*esp, (const char *)*esp, (uintptr_t)PHYS_BASE - (uintptr_t)*esp, true);	
 }
